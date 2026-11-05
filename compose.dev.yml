@@ -1,0 +1,129 @@
+# Stack local completo. El código se monta desde el host: al guardar un archivo
+# se recargan la API (tsx watch), la web (next dev) y @fmc/shared (tsc --watch).
+# El .env sigue usando localhost para correr pnpm en la máquina; acá se pisan
+# las URLs que, desde un contenedor, tienen que apuntar a los otros servicios.
+name: fmc-dev
+
+x-dev: &dev
+  image: fmc-dev:local
+  build:
+    context: .
+    dockerfile: docker/dev.Dockerfile
+  env_file:
+    - .env
+  environment: &dev-env
+    HOME: /tmp
+    DEV_UID: ${HOST_UID:-1000}
+    DEV_GID: ${HOST_GID:-1000}
+    CHROMIUM_PATH: /usr/bin/chromium
+  restart: unless-stopped
+
+services:
+  db:
+    image: pgvector/pgvector:0.8.7-pg17
+    environment:
+      POSTGRES_USER: fmc
+      POSTGRES_PASSWORD: fmc_dev_password
+      POSTGRES_DB: fmc
+    ports:
+      - "127.0.0.1:5440:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fmc -d fmc"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  storage:
+    image: rustfs/rustfs:1.0.4
+    environment:
+      RUSTFS_ACCESS_KEY: fmcdevaccess
+      RUSTFS_SECRET_KEY: fmcdevsecret123
+    ports:
+      - "127.0.0.1:9100:9000" # API S3
+      - "127.0.0.1:9101:9001" # consola web (solo local)
+    volumes:
+      - storage-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    <<: *dev
+    shm_size: 512mb # Chromium usa /dev/shm para generar PDFs
+    command:
+      [
+        "sh",
+        "-c",
+        "pnpm --filter @fmc/shared build && exec pnpm --parallel --filter @fmc/shared --filter @fmc/api dev",
+      ]
+    environment:
+      <<: *dev-env
+      PORT: "4000"
+      DATABASE_URL: postgres://fmc:fmc_dev_password@db:5432/fmc
+      S3_ENDPOINT: http://storage:9000
+      PRINT_BASE_URL: http://web:3000
+    volumes:
+      - ./:/repo
+      - dev-pnpm-store:/pnpm/store
+    ports:
+      - "127.0.0.1:4000:4000"
+    depends_on:
+      db:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      start_period: 180s
+      retries: 10
+
+  web:
+    <<: *dev
+    command:
+      [
+        "sh",
+        "-c",
+        "until [ -f packages/shared/dist/index.js ]; do sleep 0.5; done; exec pnpm --filter @fmc/web dev",
+      ]
+    environment:
+      <<: *dev-env
+      # El .env trae PORT=4000 para la API. Next usa PORT si no se lo pisamos.
+      PORT: "3000"
+      API_INTERNAL_URL: http://api:4000
+    volumes:
+      - ./:/repo
+      - dev-pnpm-store:/pnpm/store
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      api:
+        condition: service_started
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      start_period: 180s
+      retries: 12
+
+volumes:
+  db-data:
+  storage-data:
+  dev-pnpm-store:

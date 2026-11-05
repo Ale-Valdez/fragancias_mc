@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+/* Same tokens as the printable catalog. Dark is the default. */
+:root {
+  --page: #0a192f;
+  --ink: #ffffff;
+  --gold: #d3ae37;
+  --gold-bright: #e4c56a;
+  --muted: #9aa6b8;
+  --reason: #c5ceda;
+  --rule: #243656;
+  --elevated: #112240;
+  --card: #ffffff;
+  --card-edge: transparent;
+  --danger: #f0b4b4;
+  color-scheme: dark;
+}
+
+html[data-theme="light"] {
+  --page: #f6f3ec;
+  --ink: #0a192f;
+  --gold: #8a6918;
+  --gold-bright: #6f5410;
+  --muted: #5c6774;
+  --reason: #243044;
+  --rule: #e4d9c6;
+  --elevated: #ffffff;
+  --card: #ffffff;
+  --card-edge: #e3d9c8;
+  --danger: #9b2c2c;
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-page: var(--page);
+  --color-ink: var(--ink);
+  --color-gold: var(--gold);
+  --color-gold-bright: var(--gold-bright);
+  --color-muted: var(--muted);
+  --color-reason: var(--reason);
+  --color-rule: var(--rule);
+  --color-elevated: var(--elevated);
+  --color-card: var(--card);
+  --color-card-edge: var(--card-edge);
+  --color-danger: var(--danger);
+  --color-background: var(--page);
+  --color-foreground: var(--ink);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
