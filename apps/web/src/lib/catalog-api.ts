@@ -85,7 +85,7 @@ export async function getCurrentPublication(): Promise<CatalogPublication | null
   if (status !== 200) throw new CatalogApiError(status);
   const parsed = currentCatalogSchema.safeParse(body);
   if (!parsed.success) throw new CatalogApiError(500);
-  return parsed.data.current ?? parsed.data.light;
+  return parsed.data.current ?? parsed.data.light ?? null;
 }
 
 export async function listBrands(): Promise<CatalogBrand[]> {
