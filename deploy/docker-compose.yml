@@ -23,6 +23,8 @@ services:
   web:
     image: ${REGISTRY_NS:?falta REGISTRY_NS}/fmc-web:${IMAGE_TAG:?falta IMAGE_TAG}
     environment:
+      # La web llama a la API por la red interna. El nombre del servicio es siempre "api".
+      API_INTERNAL_URL: http://api:4000
       SITE_URL: ${SITE_URL:?falta SITE_URL}
       ALLOW_INDEXING: ${ALLOW_INDEXING:-false}
       WHATSAPP_PHONE: ${WHATSAPP_PHONE:-}
